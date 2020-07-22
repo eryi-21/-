@@ -50,3 +50,10 @@
 [2020-07-21T19:27:09.604] [DEBUG] cheese - admin
 [2020-07-21T19:27:09.608] [DEBUG] cheese - null
 [2020-07-21T19:27:09.608] [DEBUG] cheese - null
+[2020-07-22T13:17:49.399] [DEBUG] cheese - login => username:admin,password:123456
+[2020-07-22T13:17:49.400] [DEBUG] cheese - admin
+[2020-07-22T13:17:49.430] [DEBUG] cheese - null
+[2020-07-22T13:17:49.430] [DEBUG] cheese - null
+[2020-07-22T15:13:09.075] [DEBUG] cheese - null
+[2020-07-22T15:15:03.605] [DEBUG] cheese - null
+[2020-07-22T16:20:38.462] [DEBUG] cheese - null

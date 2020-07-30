@@ -30,6 +30,18 @@
             <el-button type="primary" size="mini" :disabled="isBtnDisabled" @click="showAddParamsDialog">添加参数</el-button>
           <!-- 动态参数表格 -->
             <el-table :data="manyTableData" border stripe>
+              <!-- 展开行，包含参数具体属性 -->
+              <el-table-column type="expand">
+                <!-- tag放置具体属性的tag -->
+                <template slot-scope="scope">
+                  <!-- 循环渲染Tag标签, 因为此时的获取的数据是字符串，所以要在获取数据时将此数据转化为数组 -->
+                  <el-tag v-for="(item, i) in scope.row.attr_vals" :key="i" class="tag" closable @close="handleClose(i, scope.row)">{{item}}</el-tag>
+                  <!-- 输入的文本框，为 -->
+                  <el-input v-if="scope.row.inputVisible" class="input-new-tag" v-model="scope.row.inputValue" ref="saveTagInput" size="small" @keyup.enter.native="handleInputConfirm(scope.row)" @blur="handleInputConfirm(scope.row)"></el-input>
+                  <!-- 添加按钮 -->
+                  <el-button v-else class="button-new-tag" size="small" @click="showInput(scope.row)">+ New Tag</el-button>
+                </template>
+              </el-table-column>
             <!-- 索引列 -->
               <el-table-column type="index"></el-table-column>
               <el-table-column label="参数名称" prop="attr_name"></el-table-column>
@@ -176,12 +188,23 @@ export default {
       }
       const { data: res } = await this.$http.get('categories/' + this.selectedCateKeys[2] + '/attributes', { params: { sel: this.activeName } })
       if (res.meta.status !== 200) return this.$message.error('获取参数信息失败!')
+
       // 判断赋值
       if (this.activeName === 'many') {
         this.manyTableData = res.data
       } else {
         this.onlyTableData = res.data
       }
+
+      // 把参数分类可选项转化为数组，使用split方法
+      // 首先便利所有分类，然后判断每个分类中的可选项数组是否为空，如果不为空则直接分割转化即可，为空则让其为一个空数组，否则未出现一个为空的可选项
+      res.data.forEach(item => {
+        // input输入框显示开关
+        item.inputVisible = false
+        // 输入框的值
+        item.inputValue = ''
+        item.attr_vals = item.attr_vals ? item.attr_vals.split(' ') : []
+      })
     },
 
     // 添加参数
@@ -247,6 +270,42 @@ export default {
       if (res.meta.status !== 200) return this.$message.error('删除失败!')
       this.$message.success('删除成功!')
       this.getParamsData()
+    },
+
+    // 参数下的可选项
+    // 点击添加按钮显示为输入框
+    showInput (row) {
+      // 在显示以及赋值时会出现参数同步改变,所以需要为各个参数分别创建一个相应的值,在为可选项循环赋值时添加两个属性即可
+      // 这里也需要通过形参传递来获得值
+      row.inputVisible = true
+      // 这个地方的值确实已经改变,但是要重新打开展开栏才能切换, 暂时没有找到原因
+    },
+    handleInputConfirm (row) {
+      // 首先需要获得发送请求的数据,而其中首先要判断是否能发送请求,即输入框中是否写了新的可选项
+      if (row.inputValue.trim().length === 0) {
+        // 重置输入框
+        row.inputValue = ''
+        row.inputVisible = false
+      } else {
+        // 将输入的加入attr_vals当中
+        // 如果没有return，则证明输入的内容，需要做后续处理
+        row.attr_vals.push(row.inputValue.trim())
+        row.inputValue = ''
+        row.inputVisible = false
+        this.saveAttrVals(row)
+      }
+    },
+    // 删除可选项
+    handleClose (i, row) {
+      row.attr_vals.splice(i, 1)
+      this.saveAttrVals(row)
+    },
+    async saveAttrVals (row) {
+      // 发送请求
+      const { data: res } = await this.$http.put(`categories/${this.selectedCateKeys[2]}/attributes/${row.attr_id}`, { attr_name: row.attr_name, attr_sel: row.attr_sel, attr_vals: row.attr_vals.join(' ') })
+      if (res.meta.status !== 200) return this.$message.error('添加失败!')
+      this.$message.success('修改成功!')
+      // 这里不需要重新刷新是因为上面已经将其添加到了数据中
     }
   }
 }
@@ -254,5 +313,15 @@ export default {
 <style lang="less" scoped>
 .cat_opt {
   margin-top: 10px;
+}
+.tag {
+  margin: 0 5px;
+}
+.input-new-tag {
+  width: 120px;
+  margin: 0 5px;
+}
+.button-new-tag {
+  margin: 0 5px;
 }
 </style>

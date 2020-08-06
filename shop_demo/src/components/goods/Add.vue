@@ -22,7 +22,7 @@
       </el-steps>
 
       <el-form ref="goodsAddFormRef" :model="addForm" label-width="80px" :rules="addFormRules" label-position="top">
-        <el-tabs v-model="active" :tab-position="tabPosition" :before-leave="beforeTabLeave">
+        <el-tabs v-model="active" :tab-position="tabPosition" :before-leave="beforeTabLeave" @tab-click="tabclick">
           <!-- 这里的active是字符串,因为代表name -->
           <el-tab-pane label="基本信息" name="0">
             <el-form-item label="商品名称" prop="goods_name">
@@ -42,13 +42,36 @@
               </el-cascader>
             </el-form-item>
           </el-tab-pane>
-          <el-tab-pane label="商品参数" name="1">商品参数</el-tab-pane>
-          <el-tab-pane label="商品属性" name="2">商品属性</el-tab-pane>
-          <el-tab-pane label="商品图片" name="3">商品图片</el-tab-pane>
+          <el-tab-pane label="商品参数" name="1">
+            <!-- 动态参数 -->
+            <!-- 首先获取参数名称,通过循环获得动态参数,绑定其中的名称属性 -->
+            <el-form-item :label="item.attr_name" v-for="item in manyData" :key="item.attr_id">
+              <!-- 渲染器其中的可选项 -->
+              <el-checkbox-group v-model="item.attr_vals">
+                <el-checkbox :label="cb" v-for="(cb, i) in item.attr_vals" :key="i" border></el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="商品属性" name="2">
+            <el-form-item :label="item.attr_name" v-for="item in onlyData" :key="item.attr_id">
+              <el-input v-model="item.attr_vals"></el-input>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="商品图片" name="3">
+            <!-- 添加图片 -->
+            <!-- 因为虽然全局配置了请求头token，但这里上传图片不是用的axios，所以需要手动配置，利用组件自带属性 -->
+            <el-upload action="http://127.0.0.1:8888/api/private/v1/upload" :on-preview="handlePreview" :on-remove="handleRemove" :on-success="handleSuccess" list-type="picture" :headers="headerObj">
+              <el-button size="small" type="primary">点击上传</el-button>
+            </el-upload>
+          </el-tab-pane>
           <el-tab-pane label="商品内容" name="4">商品内容</el-tab-pane>
         </el-tabs>
       </el-form>
     </el-card>
+
+    <el-dialog title="图片预览" :visible.sync="previewVisible" width="50%">
+      <img :src="previewPath" alt="">
+    </el-dialog>
   </div>
 </template>
 <script>
@@ -64,7 +87,8 @@ export default {
         goods_weight: '',
         goods_number: '',
         // 级联选择器被选中数组
-        goods_cat: []
+        goods_cat: [],
+        pics: []
       },
       addFormRules: {
         goods_name: [
@@ -92,7 +116,20 @@ export default {
         label: 'cat_name',
         children: 'children',
         expandTrigger: 'hover'
-      }
+      },
+
+      // 动态参数
+      manyData: [],
+      onlyData: [],
+
+      // 请求头
+      headerObj: {
+        Authorization: window.sessionStorage.getItem('token')
+      },
+
+      // 预览图片路径
+      previewPath: '',
+      previewVisible: false
     }
   },
   created () {
@@ -119,6 +156,48 @@ export default {
         this.$message.error('请完成未填选的选项!')
         return false
       }
+    },
+
+    async tabclick () {
+      // 判断当active等于1时发送请求获取参数
+      if (this.active === '1') {
+        const { data: res } = await this.$http.get(`categories/${this.addForm.goods_cat[2]}/attributes`, { params: { sel: 'many' } })
+        if (res.meta.status !== 200) return this.$message.error('获取动态参数失败')
+        // 如果动态参数中的可选项为空为了防止其渲染出空的选项让其赋值为[]
+        // 首先遍历
+        console.log(res.data)
+        res.data.forEach(item => {
+          item.attr_vals = item.attr_vals.length === 0 ? [] : item.attr_vals.split(' ')
+        })
+        this.manyData = res.data
+      } else if (this.active === '2') {
+        const { data: res } = await this.$http.get(`categories/${this.addForm.goods_cat[2]}/attributes`, { params: { sel: 'only' } })
+        if (res.meta.status !== 200) return this.$message.error('获取动态参数失败')
+        this.onlyData = res.data
+        console.log(this.onlyData)
+      }
+    },
+
+    // 预览图片
+    handlePreview (file) {
+      console.log(file)
+      this.previewPath = file.response.data.url
+      this.previewVisible = true
+    },
+    handleRemove (file) {
+      // 获取图片的临时路径
+      const filePath = file.response.data.tmp_path
+      // 找到索引值
+      const i = this.addForm.pics.findIndex(x => x.pic === filePath)
+      // 根据索引值删除
+      this.addForm.pics.splice(i, 1)
+    },
+    // 上传图片成功时触发
+    handleSuccess (res) {
+      // 为addForm添加一个pics属性(后面发送请求的参数)
+      const picInfo = { pic: res.data.tmp_path }
+      // 将其push到pics中
+      this.addForm.pics.push(picInfo)
     }
   }
 }
@@ -126,5 +205,11 @@ export default {
 <style lang="less" scoped>
 .el-alert {
   margin: 0 10px;
+}
+.el-checkbox {
+  margin: 0 0 5px 0;
+}
+img {
+  width: 100%;
 }
 </style>

@@ -5,6 +5,12 @@ import './plugins/element.js'
 import './assets/css/global.css'
 import TreeTable from 'vue-table-with-tree-grid'
 
+import vueQuillEditor from 'vue-quill-editor'
+// require styles 导入富文本编辑器对应的样式
+import 'quill/dist/quill.core.css'
+import 'quill/dist/quill.snow.css'
+import 'quill/dist/quill.bubble.css'
+
 import axios from 'axios'
 // 配置请求的跟路径
 axios.defaults.baseURL = 'http://127.0.0.1:8888/api/private/v1/'
@@ -19,6 +25,8 @@ axios.interceptors.request.use(config => {
 Vue.config.productionTip = false
 
 Vue.component('tree-table', TreeTable)
+
+Vue.use(vueQuillEditor)
 
 // 全局注册一个过滤器
 Vue.filter('dateFormat', function (originVal) {

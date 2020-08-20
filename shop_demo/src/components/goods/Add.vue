@@ -64,7 +64,12 @@
               <el-button size="small" type="primary">点击上传</el-button>
             </el-upload>
           </el-tab-pane>
-          <el-tab-pane label="商品内容" name="4">商品内容</el-tab-pane>
+          <el-tab-pane label="商品内容" name="4">
+            <!-- 富文本编辑器组件 -->
+            <quill-editor v-model="addForm.goods_introduce"></quill-editor>
+            <!-- 添加商品的按钮 -->
+            <el-button type="primary" class="btnAdd" @click="add">添加商品</el-button>
+          </el-tab-pane>
         </el-tabs>
       </el-form>
     </el-card>
@@ -75,6 +80,8 @@
   </div>
 </template>
 <script>
+import _ from 'lodash'
+
 export default {
   data () {
     return {
@@ -88,7 +95,9 @@ export default {
         goods_number: '',
         // 级联选择器被选中数组
         goods_cat: [],
-        pics: []
+        pics: [],
+        goods_introduce: '',
+        attrs: []
       },
       addFormRules: {
         goods_name: [
@@ -198,6 +207,44 @@ export default {
       const picInfo = { pic: res.data.tmp_path }
       // 将其push到pics中
       this.addForm.pics.push(picInfo)
+    },
+
+    // 添加商品
+    add () {
+      // 表单预验证
+      this.$refs.goodsAddFormRef.validate(async valid => {
+        if (!valid) return this.$message.error('请输入必填项')
+        // 执行业务逻辑
+        // 因为发送请求参数goodcats需要转换为字符串，而需要深拷贝，所以下载了依赖包lodash
+        const form = _.cloneDeep(this.addForm)
+        form.goods_cat = form.goods_cat.join(',')
+        // 处理动态参数
+        this.manyData.forEach(item => {
+          const newInfo = {
+            attr_id: item.attr_id,
+            attr_value: item.attr_vals.join(' ')
+          }
+          this.addForm.attrs.push(newInfo)
+        })
+        // 处理静态属性
+        this.onlyData.forEach(item => {
+          const newInfo = { attr_id: item.attr_id, attr_value: item.attr_vals }
+          this.addForm.attrs.push(newInfo)
+        })
+        form.attrs = this.addForm.attrs
+
+        // 发起请求添加商品
+        // 商品的名称，必须是唯一的
+        const { data: res } = await this.$http.post('goods', form)
+
+        if (res.meta.status !== 201) {
+          return this.$message.error('添加商品失败！')
+        }
+
+        this.$message.success('添加商品成功！')
+        // 编程式导航跳转
+        this.$router.push('/goods')
+      })
     }
   }
 }
@@ -211,5 +258,8 @@ export default {
 }
 img {
   width: 100%;
+}
+.btnAdd {
+  margin-top: 20px;
 }
 </style>
